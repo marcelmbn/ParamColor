@@ -40,7 +40,7 @@ def main():
         help="The threshold for the difference between two parameters.",
         type=float,
         required=False,
-        default=0.001,
+        default=0.0,
     )
     # parser.add_argument(
     #     "--delmaxdev",
@@ -50,6 +50,9 @@ def main():
     #     default=0,
     # )
     args = parser.parse_args()
+
+    if args.thresh < 0.0:
+        raise ValueError("Error. The threshold must be positive.")
 
     # Parse the parameter file
     elements, max_floats = parse_line_numbers(args.file)
@@ -186,20 +189,10 @@ def plot_difference(parameters: dict, thresh: float):
                 abs(parameters[keys[0]][i, j]) < thresh
                 or abs(parameters[keys[1]][i, j]) < thresh
             ):
-                if parameters[keys[0]][i, j] < parameters[keys[1]][i, j]:
-                    div[i, j] = (
-                        parameters[keys[0]][i, j] - parameters[keys[1]][i, j]
-                    ) - thresh / (
-                        abs(parameters[keys[0]][i, j])
-                        + abs(parameters[keys[1]][i, j] + thresh)
-                    )
-                else:
-                    div[i, j] = (
-                        parameters[keys[0]][i, j] - parameters[keys[1]][i, j]
-                    ) + thresh / (
-                        abs(parameters[keys[0]][i, j])
-                        + abs(parameters[keys[1]][i, j] + thresh)
-                    )
+                div[i, j] = (parameters[keys[0]][i, j] - parameters[keys[1]][i, j]) / (
+                    abs(parameters[keys[0]][i, j])
+                    + abs(parameters[keys[1]][i, j] + thresh)
+                )
             else:
                 div[i, j] = (parameters[keys[0]][i, j] - parameters[keys[1]][i, j]) / (
                     abs(parameters[keys[0]][i, j]) + abs(parameters[keys[1]][i, j])
@@ -224,7 +217,7 @@ def plot_difference(parameters: dict, thresh: float):
     #         div[max_vals[i][1], max_vals[i][2]] = 0.0
 
     # plot the ratio of the parameters as a heatmap
-    plt.figure("Parameter difference", figsize=(20 * cm, 10 * cm), dpi=300)
+    plt.figure("Parameter difference", figsize=(20 * cm, 10 * cm), dpi=200)
     rdgn = sns.diverging_palette(h_neg=270, h_pos=10, s=100, l=40, sep=1, as_cmap=True)
     sns.heatmap(
         div,
