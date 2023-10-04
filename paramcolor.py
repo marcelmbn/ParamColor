@@ -6,6 +6,8 @@ to color-highlight differences between the parameters in the file.
 
 import argparse as ap
 
+import numpy as np
+
 # from typing import Dict, List
 
 
@@ -28,20 +30,41 @@ def main():
         type=int,
         required=True,
     )
+    parser.add_argument(
+        "--thresh",
+        help="The threshold for the difference between two parameters.",
+        type=float,
+        required=False,
+        default=0.001,
+    )
     args = parser.parse_args()
 
     # Parse the parameter file
     elements, max_floats = parse_line_numbers(args.file)
 
-    # for key, value in elements.items():
-    #     print (key, value)
+    # sort the elements in ascending order
+    # args.elements.sort() # currently commented out!
+
+    parameters = {}
 
     # Parse the parameters
     for el in args.elements:
-        parse_parameters(args.file, el, elements, max_floats)
+        par = parse_parameters(args.file, el, elements, max_floats)
+        parameters[el] = par
+
+        # print the parameter
+        print(f"Parameter {el}:")
+        for i in range(par.shape[0]):
+            for j in range(par.shape[1]):
+                print(f"{par[i, j]:10.4f}", end=" ")
+            print()
+        print()
+
+    # Plot the difference between the parameters
+    plot_difference(parameters, args.thresh)
 
 
-def parse_line_numbers(file_path) -> tuple[dict, int]:
+def parse_line_numbers(file_path: str) -> tuple[dict, int]:
     """
     Parses a parameter file and returns a dictionary with the parameters.
     """
@@ -89,7 +112,9 @@ def parse_line_numbers(file_path) -> tuple[dict, int]:
     return elements, max_floats
 
 
-def parse_parameters(file_path, el, elements, max_floats):
+def parse_parameters(
+    file_path: str, el: int, elements: dict, max_floats: int
+) -> np.ndarray:
     """
     Parses a parameter file and returns a dictionary with the parameters.
     """
@@ -107,9 +132,44 @@ def parse_parameters(file_path, el, elements, max_floats):
         for i in range(upperbound + 1 - lowerbound):
             lines.append(next(file))
 
-    print(lines)
+    # Initialize an empty NumPy array with double precision
+    rows = upperbound - lowerbound + 1
+    par = np.zeros((rows, max_floats), dtype=np.float64)
 
-    return None
+    # parse the parameters
+    for i, line in enumerate(lines):
+        content = line.strip().split()
+        for j, val in enumerate(content):
+            par[i, j] = np.float64(val)
+
+    return par
+
+
+def plot_difference(parameters: dict, thresh: float):
+    """
+    Plots the difference between two parameters.
+    """
+
+    if len(parameters) != 2:
+        raise ValueError("Error. The number of parameters is not two.")
+
+    # get the keys of the dictionary
+    keys = list(parameters.keys())
+    # get the number of rows and columns of the parameter arrays
+    rows, max_floats = parameters[keys[0]].shape
+    div = np.zeros((rows, max_floats), dtype=np.float64)
+    # divide each parameter entry of the first parameter array by the
+    # corresponding entry of the second parameter array
+
+    # set up a for loop to iterate over the rows
+    print("Ratio of the parameters:")
+    for i in range(rows):
+        for j in range(max_floats):
+            div[i, j] = (parameters[keys[0]][i, j] + thresh) / (
+                parameters[keys[1]][i, j] + thresh
+            )
+            print(f"{div[i, j]:10.4f}", end=" ")
+        print()
 
 
 if __name__ == "__main__":
