@@ -5,6 +5,7 @@ to color-highlight differences between the parameters in the file.
 """
 
 import argparse as ap
+from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
