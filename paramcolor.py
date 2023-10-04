@@ -186,9 +186,8 @@ def plot_difference(parameters: dict, thresh: float):
             if parameters[keys[0]][i, j] == 0.0 or parameters[keys[1]][i, j] == 0.0:
                 div[i, j] = np.nan
             elif (
-                abs(parameters[keys[0]][i, j]) < thresh
-                or abs(parameters[keys[1]][i, j]) < thresh
-            ):
+                abs(parameters[keys[0]][i, j]) + abs(parameters[keys[1]][i, j])
+            ) < thresh:
                 div[i, j] = (parameters[keys[0]][i, j] - parameters[keys[1]][i, j]) / (
                     abs(parameters[keys[0]][i, j])
                     + abs(parameters[keys[1]][i, j] + thresh)
