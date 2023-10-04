@@ -5,7 +5,7 @@ to color-highlight differences between the parameters in the file.
 """
 
 import argparse as ap
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -76,7 +76,7 @@ def main():
     plot_difference(parameters, args.thresh)  # , args.delmaxdev
 
 
-def parse_line_numbers(file_path: str) -> tuple[dict, int]:
+def parse_line_numbers(file_path: str) -> Tuple[Dict, int]:
     """
     Parses a parameter file and returns a dictionary with the parameters.
     """
