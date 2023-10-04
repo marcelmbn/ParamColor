@@ -6,9 +6,13 @@ to color-highlight differences between the parameters in the file.
 
 import argparse as ap
 
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 # from typing import Dict, List
+
+cm = 1.0 / 2.54
 
 
 def main():
@@ -37,6 +41,13 @@ def main():
         required=False,
         default=0.001,
     )
+    # parser.add_argument(
+    #     "--delmaxdev",
+    #     help="Delete the highest <int> deviations from the plot.",
+    #     type=int,
+    #     required=False,
+    #     default=0,
+    # )
     args = parser.parse_args()
 
     # Parse the parameter file
@@ -61,7 +72,7 @@ def main():
         print()
 
     # Plot the difference between the parameters
-    plot_difference(parameters, args.thresh)
+    plot_difference(parameters, args.thresh)  # , args.delmaxdev
 
 
 def parse_line_numbers(file_path: str) -> tuple[dict, int]:
@@ -158,18 +169,92 @@ def plot_difference(parameters: dict, thresh: float):
     # get the number of rows and columns of the parameter arrays
     rows, max_floats = parameters[keys[0]].shape
     div = np.zeros((rows, max_floats), dtype=np.float64)
+
+    # DEPRECATED: max_vals is not used anymore
+    # max_vals = []
+
     # divide each parameter entry of the first parameter array by the
     # corresponding entry of the second parameter array
-
     # set up a for loop to iterate over the rows
-    print("Ratio of the parameters:")
+    print("Damped ratio of the parameters:")
     for i in range(rows):
         for j in range(max_floats):
-            div[i, j] = (parameters[keys[0]][i, j] + thresh) / (
-                parameters[keys[1]][i, j] + thresh
-            )
+            if parameters[keys[0]][i, j] == 0.0 or parameters[keys[1]][i, j] == 0.0:
+                div[i, j] = np.nan
+            elif (
+                abs(parameters[keys[0]][i, j]) < thresh
+                or abs(parameters[keys[1]][i, j]) < thresh
+            ):
+                if parameters[keys[0]][i, j] < parameters[keys[1]][i, j]:
+                    div[i, j] = (
+                        parameters[keys[0]][i, j] - parameters[keys[1]][i, j]
+                    ) - thresh / (
+                        abs(parameters[keys[0]][i, j])
+                        + abs(parameters[keys[1]][i, j] + thresh)
+                    )
+                else:
+                    div[i, j] = (
+                        parameters[keys[0]][i, j] - parameters[keys[1]][i, j]
+                    ) + thresh / (
+                        abs(parameters[keys[0]][i, j])
+                        + abs(parameters[keys[1]][i, j] + thresh)
+                    )
+            else:
+                div[i, j] = (parameters[keys[0]][i, j] - parameters[keys[1]][i, j]) / (
+                    abs(parameters[keys[0]][i, j]) + abs(parameters[keys[1]][i, j])
+                )
+            div[i, j] = div[i, j] * 100.0
+            # DEPRECATED: max_vals is not used anymore
+            # max_vals.append([div[i, j], i, j])
             print(f"{div[i, j]:10.4f}", end=" ")
         print()
+
+    try:
+        div[0, 8] = np.nan
+    except IndexError:
+        print("WARNING: No increment parameter found. Skipping increment parameter.")
+
+    # DEPRECATED: max_vals is not used anymore
+    # sort max_vals by the absolute value of each first element of the list
+    # max_vals.sort(key=lambda x: abs(x[0]), reverse=True)
+    # if delmaxdev is not zero, set the highest <int> deviations to zero
+    # if delmaxdev != 0:
+    #     for i in range(delmaxdev):
+    #         div[max_vals[i][1], max_vals[i][2]] = 0.0
+
+    # plot the ratio of the parameters as a heatmap
+    plt.figure("Parameter difference", figsize=(20 * cm, 10 * cm), dpi=300)
+    rdgn = sns.diverging_palette(h_neg=270, h_pos=10, s=100, l=40, sep=1, as_cmap=True)
+    sns.heatmap(
+        div,
+        cmap=rdgn,
+        center=0.00,
+        annot=True,
+        fmt=".1f",
+        linewidths=1,
+        linecolor="black",
+        cbar=True,
+        vmax=75,
+        vmin=-75,
+    )
+
+    # set ticks such that they start from 1 and end at the number of rows and columns
+    plt.xticks(np.arange(0.5, max_floats, 1), np.arange(1, max_floats + 1, 1))
+    plt.yticks(np.arange(0.5, rows, 1), np.arange(1, rows + 1, 1))
+
+    plt.title(
+        "Ratio of the parameters for elements "
+        + str(keys[0])
+        + " and "
+        + str(keys[1])
+        + " in % [ "
+        + str(keys[0])
+        + " / "
+        + str(keys[1])
+        + "; 0 % => equal]",
+    )
+
+    plt.show()
 
 
 if __name__ == "__main__":
