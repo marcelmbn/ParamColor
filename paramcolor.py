@@ -90,11 +90,17 @@ def parse_line_numbers(file_path: str) -> Tuple[Dict, int]:
     max_floats = 0
     glob_var = True
     k = 0
+    lastline = 0
     for line in lines:
-        content = line.strip().split()
-        # if the line starts with an integer, it is the start of a new parameter
         isint = False
         isfloat = False
+
+        content = line.strip().split()
+        if len(content) == 0:
+            break
+        lastline = lines.index(line)
+        # if the line starts with an integer, it is the start of a new parameter
+        # Else if the line is completely empty, it is the end of the file
         try:
             intval = int(content[0])
             if str(intval) == content[0]:
@@ -117,12 +123,10 @@ def parse_line_numbers(file_path: str) -> Tuple[Dict, int]:
                 if nfloats > max_floats:
                     max_floats = nfloats
             continue
-        # Else if the line is completely empty, it is the end of the file
-        elif content[0] == "":
-            break
         else:
             print(content)
             raise ValueError("Error. The line does not start with an integer or float.")
+    elements[120] = lastline + 1
 
     return elements, max_floats
 
@@ -136,19 +140,23 @@ def parse_parameters(
 
     try:
         lowerbound = elements[el] + 1
-        upperbound = elements[el + 1] - 1
-    except IndexError as exc:
-        raise IndexError("Error. The element is not in the parameter file.") from exc
+        # index in the dictionary of el
+        index = list(elements.keys()).index(el)
+        if index == len(elements):
+            raise IndexError("Error. The element is not in the parameter file.")
+        upperbound = list(elements.values())[index + 1]
+    except KeyError as exc:
+        raise KeyError("Error. The element is not in the parameter file.") from exc
 
     with open(file_path, encoding="UTF-8") as file:
         for i in range(lowerbound):
             next(file)
         lines = []
-        for i in range(upperbound + 1 - lowerbound):
+        for i in range(upperbound - lowerbound):
             lines.append(next(file))
 
     # Initialize an empty NumPy array with double precision
-    rows = upperbound - lowerbound + 1
+    rows = upperbound - lowerbound
     par = np.zeros((rows, max_floats), dtype=np.float64)
 
     # parse the parameters
