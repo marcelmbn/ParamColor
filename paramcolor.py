@@ -26,7 +26,11 @@ def main():
         description="Color-highlight differences in parameter files."
     )
     parser.add_argument(
-        "--file", help="The parameter file to be parsed.", type=str, required=True
+        "--files",
+        help="The parameter file to be parsed.",
+        nargs="+",
+        type=str,
+        required=True,
     )
     parser.add_argument(
         "--elements",
@@ -51,32 +55,79 @@ def main():
     # )
     args = parser.parse_args()
 
+    runtype: str = " "
+
     if args.thresh < 0.0:
         raise ValueError("Error. The threshold must be positive.")
+    if len(args.elements) > 2:
+        raise ValueError("Error. The number of elements is larger than two.")
+    if len(args.files) > 2:
+        raise ValueError("Error. The number of files is larger than two.")
+    if len(args.files) == 1 and len(args.elements) == 1:
+        raise ValueError(
+            "Error. Only one file and one element given. Comparison not possible."
+        )
+    elif len(args.files) == 1 and len(args.elements) == 2:
+        print("NOTE: One file and two elements are given.")
+        runtype = "1f2e"
+    elif len(args.files) == 2 and len(args.elements) == 1:
+        print(
+            "NOTE: Two files are given, but only one element. \
+Comparing the same element in both files."
+        )
+        runtype = "2f1e"
+    elif len(args.files) == 2 and len(args.elements) == 2:
+        print(
+            "NOTE: Two files and two elements are given. \
+Comparing the parameters of the first element in the first file \
+with the parameters of the second element in the second file."
+        )
+        runtype = "2f2e"
+    else:
+        raise ValueError("Error. Something went wrong with the arguments.")
 
     # Parse the parameter file
-    elements, max_floats = parse_line_numbers(args.file)
+    parameters: dict = {}
+    file_info: dict = {}
+    k = 0
+    l = 0
+    for file in args.files:
+        print(f"OPENED FILE: {file}:")
+        k += 1
+        file_info[k] = parse_line_numbers(file)
+        # Parse the parameters
+        for el in args.elements:
+            l += 1
+            par = parse_parameters(file, el, file_info[k][0], file_info[k][1])
+            parameters[l] = par
+
+            # print the parameter
+            print(f"Parameter {el}:")
+            for i in range(par.shape[0]):
+                for j in range(par.shape[1]):
+                    print(f"{par[i, j]:10.4f}", end=" ")
+                print()
+            print()
+
+    atomnumbers = []
+    if runtype == "2f1e":
+        atomnumbers.append(args.elements[0])
+        atomnumbers.append(args.elements[0])
+    else:
+        atomnumbers.append(args.elements[0])
+        atomnumbers.append(args.elements[1])
+    if runtype == "2f2e":
+        parameters[1] = parameters[3]
+        del parameters[2]
+        del parameters[3]
 
     # sort the elements in ascending order
     # args.elements.sort() # currently commented out!
 
-    parameters = {}
-
-    # Parse the parameters
-    for el in args.elements:
-        par = parse_parameters(args.file, el, elements, max_floats)
-        parameters[el] = par
-
-        # print the parameter
-        print(f"Parameter {el}:")
-        for i in range(par.shape[0]):
-            for j in range(par.shape[1]):
-                print(f"{par[i, j]:10.4f}", end=" ")
-            print()
-        print()
-
     # Plot the difference between the parameters
-    plot_difference(parameters, args.thresh)  # , args.delmaxdev
+    plot_difference(
+        parameters, args.thresh, atomnumbers, args.files
+    )  # , args.delmaxdev
 
 
 def parse_line_numbers(file_path: str) -> Tuple[Dict, int]:
@@ -142,7 +193,7 @@ def parse_parameters(
         lowerbound = elements[el] + 1
         # index in the dictionary of el
         index = list(elements.keys()).index(el)
-        if index == len(elements):
+        if (index + 1) > len(elements):
             raise IndexError("Error. The element is not in the parameter file.")
         upperbound = list(elements.values())[index + 1]
     except KeyError as exc:
@@ -168,7 +219,9 @@ def parse_parameters(
     return par
 
 
-def plot_difference(parameters: dict, thresh: float):
+def plot_difference(
+    parameters: dict, thresh: float, atomnumbers: list, files: list
+) -> None:
     """
     Plots the difference between two parameters.
     """
@@ -243,16 +296,28 @@ def plot_difference(parameters: dict, thresh: float):
     plt.xticks(np.arange(0.5, max_floats, 1), np.arange(1, max_floats + 1, 1))
     plt.yticks(np.arange(0.5, rows, 1), np.arange(1, rows + 1, 1))
 
+    filestring = ""
+    for i, file in enumerate(files):
+        filestring += file
+        if i < len(files) - 1:
+            filestring += ", "
     plt.title(
         "Ratio of the parameters for elements "
-        + str(keys[0])
+        + r"$\bf{"
+        + str(atomnumbers[0])
+        + "}$"
         + " and "
-        + str(keys[1])
+        + r"$\bf{"
+        + str(atomnumbers[1])
+        + "}$"
         + " in % [ "
-        + str(keys[0])
+        + str(atomnumbers[0])
         + " / "
-        + str(keys[1])
-        + "; 0 % => equal]",
+        + str(atomnumbers[1])
+        + "; 0 % => equal]"
+        + "\n in the files "
+        + filestring,
+        fontsize=10,
     )
 
     plt.show()
